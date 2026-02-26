@@ -7,6 +7,7 @@ import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -29,8 +30,6 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.unit.TextUnit
-import androidx.compose.ui.unit.TextUnitType
 import androidx.compose.ui.unit.dp
 import com.jksalcedo.app.ui.theme.ComposeToPDFTheme
 import kotlinx.coroutines.Dispatchers
@@ -38,6 +37,11 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.FileOutputStream
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.layout.size
+import androidx.compose.ui.res.painterResource
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -86,28 +90,12 @@ fun Layout(context: Context, content: TextFieldState) {
                             path?.let {
                                 val file = File(it, "test.pdf")
                                 val outputStream = FileOutputStream(file)
-                                val result = pdfGenerator.generate(
+                                val result = pdfGenerator.generateLongContent(
                                     outputStream = outputStream,
                                     pageSize = PdfPageSize.A4(72)
                                         .orientation(Orientation.PORTRAIT),
                                     margin = 160.dp,
-                                    pages = listOf(
-                                        {
-                                            Text(
-                                                text = content.text.toString(),
-                                                fontSize = TextUnit(14F, TextUnitType.Sp)
-                                            )
-                                        },
-                                        {
-                                            DebugConfigStamp()
-                                        },
-                                        {
-                                            PdfAsyncImage(
-                                                model = "https://www.pixelstalk.net/wp-content/uploads/2016/06/HD-images-of-nature-download.jpg",
-                                                contentDescription = ""
-                                            )
-                                        },
-                                    )
+                                    content = { Greeting() }
                                 )
                                 withContext(Dispatchers.Main) {
                                     if (result.isSuccess) {
@@ -193,4 +181,156 @@ fun DebugConfigStamp() {
         Text("Config Screen Width: ${config.screenWidthDp}")
         Text("Window Screen Width: ${window.containerSize.width}")
     }
+}
+
+@Composable
+fun Greeting() {
+    Column {
+        Text(
+            modifier = Modifier.padding(all = 30.dp),
+            text = "Hello 월드여!!!",
+            style = TextStyle(fontWeight = FontWeight.Normal, fontSize = 14.sp)
+        )
+        Text(
+            text = "Hello 월드여!!! Bold 입니다!",
+            modifier = Modifier.padding(all = 30.dp),
+            style = TextStyle(fontWeight = FontWeight.Bold, fontSize = 14.sp)
+        )
+        Text(
+            text = "해 질 녘, 붉게 물든 노을이 서쪽 하늘을 가득 채우며 잔잔한 바다 위에 긴 황금빛 띠를 만들어내고, 갈매기 한 마리가 외로이 수평선을 향해 날아가며 내뿜는 날갯짓은 마치 잊혀진 추억의 파편처럼 덧없으면서도 눈부시게 아름다웠다.\"",
+            modifier = Modifier.padding(all = 30.dp),
+            style = TextStyle(fontWeight = FontWeight.Bold, fontSize = 14.sp)
+        )
+        Button(
+            onClick = {
+
+            },
+            modifier = Modifier
+                .size(width = 200.dp, height = 50.dp),
+            content = { Text(text = "클릭") }
+        )
+        Text(
+            modifier = Modifier.padding(all = 30.dp),
+            text = "Hello 월드여!!!",
+            style = TextStyle(fontWeight = FontWeight.Normal, fontSize = 14.sp)
+        )
+        Text(
+            text = "Hello 월드여!!! Bold 입니다!",
+            modifier = Modifier.padding(all = 30.dp),
+            style = TextStyle(fontWeight = FontWeight.Bold, fontSize = 14.sp)
+        )
+        Text(
+            text = "해 질 녘, 붉게 물든 노을이 서쪽 하늘을 가득 채우며 잔잔한 바다 위에 긴 황금빛 띠를 만들어내고, 갈매기 한 마리가 외로이 수평선을 향해 날아가며 내뿜는 날갯짓은 마치 잊혀진 추억의 파편처럼 덧없으면서도 눈부시게 아름다웠다.\"",
+            modifier = Modifier.padding(all = 30.dp),
+            style = TextStyle(fontWeight = FontWeight.Bold, fontSize = 14.sp)
+        )
+        Text(
+            modifier = Modifier.padding(all = 30.dp),
+            text = "Hello 월드여!!!",
+            style = TextStyle(fontWeight = FontWeight.Normal, fontSize = 14.sp)
+        )
+        Text(
+            text = "Hello 월드여!!! Bold 입니다!",
+            modifier = Modifier.padding(all = 30.dp),
+            style = TextStyle(fontWeight = FontWeight.Bold, fontSize = 14.sp)
+        )
+        Text(
+            text = "해 질 녘, 붉게 물든 노을이 서쪽 하늘을 가득 채우며 잔잔한 바다 위에 긴 황금빛 띠를 만들어내고, 갈매기 한 마리가 외로이 수평선을 향해 날아가며 내뿜는 날갯짓은 마치 잊혀진 추억의 파편처럼 덧없으면서도 눈부시게 아름다웠다.\"",
+            modifier = Modifier.padding(all = 30.dp),
+            style = TextStyle(fontWeight = FontWeight.Bold, fontSize = 14.sp)
+        )
+        Image(
+            modifier = Modifier.size(24.dp),
+            painter = painterResource(R.drawable.user),
+            contentDescription = null,
+        )
+        Text(
+            modifier = Modifier.padding(all = 30.dp),
+            text = "Hello 월드여!!!",
+            style = TextStyle(fontWeight = FontWeight.Normal, fontSize = 14.sp)
+        )
+        Text(
+            text = "Hello 월드여!!! Bold 입니다!",
+            modifier = Modifier.padding(all = 30.dp),
+            style = TextStyle(fontWeight = FontWeight.Bold, fontSize = 14.sp)
+        )
+        Text(
+            text = "해 질 녘, 붉게 물든 노을이 서쪽 하늘을 가득 채우며 잔잔한 바다 위에 긴 황금빛 띠를 만들어내고, 갈매기 한 마리가 외로이 수평선을 향해 날아가며 내뿜는 날갯짓은 마치 잊혀진 추억의 파편처럼 덧없으면서도 눈부시게 아름다웠다.\"",
+            modifier = Modifier.padding(all = 30.dp),
+            style = TextStyle(fontWeight = FontWeight.Bold, fontSize = 14.sp)
+        )
+        Text(
+            modifier = Modifier.padding(all = 30.dp),
+            text = "Hello 월드여!!!",
+            style = TextStyle(fontWeight = FontWeight.Normal, fontSize = 14.sp)
+        )
+        Text(
+            text = "Hello 월드여!!! Bold 입니다!",
+            modifier = Modifier.padding(all = 30.dp),
+            style = TextStyle(fontWeight = FontWeight.Bold, fontSize = 14.sp)
+        )
+        Text(
+            text = "해 질 녘, 붉게 물든 노을이 서쪽 하늘을 가득 채우며 잔잔한 바다 위에 긴 황금빛 띠를 만들어내고, 갈매기 한 마리가 외로이 수평선을 향해 날아가며 내뿜는 날갯짓은 마치 잊혀진 추억의 파편처럼 덧없으면서도 눈부시게 아름다웠다.\"",
+            modifier = Modifier.padding(all = 30.dp),
+            style = TextStyle(fontWeight = FontWeight.Bold, fontSize = 14.sp)
+        )
+        Text(
+            modifier = Modifier.padding(all = 30.dp),
+            text = "Hello 월드여!!!",
+            style = TextStyle(fontWeight = FontWeight.Normal, fontSize = 14.sp)
+        )
+        Text(
+            text = "Hello 월드여!!! Bold 입니다!",
+            modifier = Modifier.padding(all = 30.dp),
+            style = TextStyle(fontWeight = FontWeight.Bold, fontSize = 14.sp)
+        )
+        Text(
+            text = "해 질 녘, 붉게 물든 노을이 서쪽 하늘을 가득 채우며 잔잔한 바다 위에 긴 황금빛 띠를 만들어내고, 갈매기 한 마리가 외로이 수평선을 향해 날아가며 내뿜는 날갯짓은 마치 잊혀진 추억의 파편처럼 덧없으면서도 눈부시게 아름다웠다.\"",
+            modifier = Modifier.padding(all = 30.dp),
+            style = TextStyle(fontWeight = FontWeight.Bold, fontSize = 14.sp)
+        )
+        Text(
+            modifier = Modifier.padding(all = 30.dp),
+            text = "Hello 월드여!!!",
+            style = TextStyle(fontWeight = FontWeight.Normal, fontSize = 14.sp)
+        )
+        Text(
+            text = "Hello 월드여!!! Bold 입니다!",
+            modifier = Modifier.padding(all = 30.dp),
+            style = TextStyle(fontWeight = FontWeight.Bold, fontSize = 14.sp)
+        )
+        Text(
+            text = "해 질 녘, 붉게 물든 노을이 서쪽 하늘을 가득 채우며 잔잔한 바다 위에 긴 황금빛 띠를 만들어내고, 갈매기 한 마리가 외로이 수평선을 향해 날아가며 내뿜는 날갯짓은 마치 잊혀진 추억의 파편처럼 덧없으면서도 눈부시게 아름다웠다.\"",
+            modifier = Modifier.padding(all = 30.dp),
+            style = TextStyle(fontWeight = FontWeight.Bold, fontSize = 14.sp)
+        )
+        Text(
+            modifier = Modifier.padding(all = 30.dp),
+            text = "Hello 월드여!!!",
+            style = TextStyle(fontWeight = FontWeight.Normal, fontSize = 14.sp)
+        )
+        Text(
+            text = "Hello 월드여!!! Bold 입니다!",
+            modifier = Modifier.padding(all = 30.dp),
+            style = TextStyle(fontWeight = FontWeight.Bold, fontSize = 14.sp)
+        )
+        Text(
+            text = "해 질 녘, 붉게 물든 노을이 서쪽 하늘을 가득 채우며 잔잔한 바다 위에 긴 황금빛 띠를 만들어내고, 갈매기 한 마리가 외로이 수평선을 향해 날아가며 내뿜는 날갯짓은 마치 잊혀진 추억의 파편처럼 덧없으면서도 눈부시게 아름다웠다.\"",
+            modifier = Modifier.padding(all = 30.dp),
+            style = TextStyle(fontWeight = FontWeight.Bold, fontSize = 14.sp)
+        )
+        PdfAsyncImage(
+            model = "https://www.pixelstalk.net/wp-content/uploads/2016/06/HD-images-of-nature-download.jpg",
+            contentDescription = ""
+        )
+        PdfAsyncImage(
+            model = "https://www.pixelstalk.net/wp-content/uploads/2016/06/HD-images-of-nature-download.jpg",
+            contentDescription = ""
+        )
+        PdfAsyncImage(
+            model = "https://www.pixelstalk.net/wp-content/uploads/2016/06/HD-images-of-nature-download.jpg",
+            contentDescription = ""
+        )
+    }
+
 }
