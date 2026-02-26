@@ -48,6 +48,9 @@ import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import java.io.OutputStream
 import kotlin.coroutines.resume
+import kotlin.math.ceil
+import androidx.compose.foundation.layout.width
+
 
 class PdfGenerator(private val context: Context) {
 
@@ -189,6 +192,146 @@ class PdfGenerator(private val context: Context) {
                 e.printStackTrace()
                 return@withContext Result.failure(e)
             } finally {
+                pdfDocument.close()
+            }
+        }
+    }
+
+    /**
+     * Generates a PDF from a single long Composable.
+     * If content height exceeds a page, it is split across multiple pages without bitmap capture.
+     */
+    suspend fun generateLongContent(
+        outputStream: OutputStream,
+        pageSize: PdfPageSize = PdfPageSize.A4(72),
+        margin: Dp = 160.dp,
+        timeout: Long = 3000,
+        content: @Composable () -> Unit
+    ): Result<String> = withContext(Dispatchers.Main) {
+        outputStream.use { out ->
+            val pdfDocument = PdfDocument()
+            val imageMonitor = PdfImageMonitor()
+
+            val densityScale = pageSize.dpi / 72f
+            val pdfDensity = object : Density {
+                override val density: Float = densityScale
+                override val fontScale: Float = 1f
+            }
+
+            val contentWidth = pageSize.width - (margin.value * (pageSize.dpi / 160f) * 2).toInt()
+            val contentHeight = pageSize.height - (margin.value * (pageSize.dpi / 160f) * 2).toInt()
+            val marginPx = (margin.value * (pageSize.dpi / 160f)).toInt()
+
+            if (contentWidth <= 0 || contentHeight <= 0) {
+                return@withContext Result.failure(
+                    IllegalArgumentException("Page content area must be positive. Check pageSize and margin.")
+                )
+            }
+
+            var viewAttached = false
+            val contentReady = CompletableDeferred<Unit>()
+            var laidOutContentHeight = 0
+            val composeView = ComposeView(context = context)
+            val rootLayout =
+                (context as? Activity)?.window?.decorView?.findViewById<ViewGroup>(R.id.content)
+                    ?: return@withContext Result.failure(
+                        IllegalStateException("Context must be an Activity")
+                    )
+
+            try {
+                composeView.apply {
+                    setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnDetachedFromWindow)
+                    setContent {
+                        CompositionLocalProvider(
+                            LocalPdfImageMonitor provides imageMonitor,
+                            LocalDensity provides pdfDensity
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .width(contentWidth.dp)
+                                    .onGloballyPositioned {
+                                        laidOutContentHeight = it.size.height
+                                        if (!contentReady.isCompleted && it.size.height > 0) {
+                                            contentReady.complete(Unit)
+                                        }
+                                    }
+                            ) {
+                                content()
+                            }
+                        }
+                    }
+                }
+
+                composeView.alpha = 0f
+                rootLayout.addView(
+                    composeView,
+                    LayoutParams(contentWidth, LayoutParams.WRAP_CONTENT)
+                )
+                viewAttached = true
+
+                withContext(Dispatchers.Main) {
+                    kotlinx.coroutines.withTimeout(timeout) {
+                        contentReady.await()
+                    }
+                }
+
+                waitForNextFrame(composeView)
+                imageMonitor.waitForImages(composeView)
+
+                composeView.measure(
+                    View.MeasureSpec.makeMeasureSpec(contentWidth, View.MeasureSpec.EXACTLY),
+                    View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED)
+                )
+
+                val totalContentHeight = maxOf(composeView.measuredHeight, laidOutContentHeight)
+                if (totalContentHeight <= 0) {
+                    return@withContext Result.failure(
+                        IllegalStateException("Unable to measure composable content height.")
+                    )
+                }
+
+                composeView.layout(0, 0, contentWidth, totalContentHeight)
+                waitForDrawReady(composeView)
+
+                val pageCount = ceil(totalContentHeight / contentHeight.toFloat()).toInt()
+
+                for (pageIndex in 0 until pageCount) {
+                    val pageInfo = PdfDocument.PageInfo.Builder(
+                        pageSize.width,
+                        pageSize.height,
+                        pageIndex + 1
+                    ).create()
+                    val page = pdfDocument.startPage(pageInfo)
+                    try {
+                        page.canvas.save()
+                        page.canvas.translate(marginPx.toFloat(), marginPx.toFloat())
+                        page.canvas.clipRect(
+                            0f,
+                            0f,
+                            contentWidth.toFloat(),
+                            contentHeight.toFloat()
+                        )
+                        page.canvas.translate(0f, -(pageIndex * contentHeight).toFloat())
+                        composeView.draw(page.canvas)
+                        page.canvas.restore()
+                    } finally {
+                        pdfDocument.finishPage(page)
+                    }
+                }
+
+                withContext(Dispatchers.IO) {
+                    pdfDocument.writeTo(out)
+                    out.flush()
+                }
+
+                Result.success("Successfully generated $pageCount pages from long content.")
+            } catch (e: Exception) {
+                e.printStackTrace()
+                Result.failure(e)
+            } finally {
+                if (viewAttached) {
+                    rootLayout.removeView(composeView)
+                }
                 pdfDocument.close()
             }
         }
