@@ -108,11 +108,13 @@ class PdfGenerator(private val context: Context) {
                                     LocalPdfImageMonitor provides imageMonitor,
                                     LocalDensity provides pdfDensity
                                 ) {
+                                    val contentWidthDp = with(pdfDensity) { contentWidth.toDp() }
+                                    val contentHeightDp = with(pdfDensity) { contentHeight.toDp() }
                                     Box(
                                         modifier = Modifier
                                             .size(
-                                                contentWidth.dp,
-                                                contentHeight.dp
+                                                contentWidthDp,
+                                                contentHeightDp
                                             )
                                             .onGloballyPositioned {
                                                 if (!contentReady.isCompleted) {
@@ -206,15 +208,16 @@ class PdfGenerator(private val context: Context) {
         pageSize: PdfPageSize = PdfPageSize.A4(72),
         margin: Dp = 160.dp,
         timeout: Long = 3000,
+        autoRebalanceBreaks: Boolean = true,
+        minLastPageRatio: Float = 0.2f,
         content: @Composable () -> Unit
     ): Result<String> = withContext(Dispatchers.Main) {
         outputStream.use { out ->
             val pdfDocument = PdfDocument()
             val imageMonitor = PdfImageMonitor()
 
-            val densityScale = pageSize.dpi / 72f
             val pdfDensity = object : Density {
-                override val density: Float = densityScale
+                override val density: Float = pageSize.dpi / 160f
                 override val fontScale: Float = 1f
             }
 
@@ -225,6 +228,11 @@ class PdfGenerator(private val context: Context) {
             if (contentWidth <= 0 || contentHeight <= 0) {
                 return@withContext Result.failure(
                     IllegalArgumentException("Page content area must be positive. Check pageSize and margin.")
+                )
+            }
+            if (minLastPageRatio <= 0f || minLastPageRatio > 1f) {
+                return@withContext Result.failure(
+                    IllegalArgumentException("minLastPageRatio must be in the range (0f, 1f].")
                 )
             }
 
@@ -282,7 +290,6 @@ class PdfGenerator(private val context: Context) {
                     View.MeasureSpec.makeMeasureSpec(contentWidth, View.MeasureSpec.EXACTLY),
                     View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED)
                 )
-
                 val totalContentHeight = maxOf(composeView.measuredHeight, laidOutContentHeight)
                 if (totalContentHeight <= 0) {
                     return@withContext Result.failure(
@@ -293,7 +300,13 @@ class PdfGenerator(private val context: Context) {
                 composeView.layout(0, 0, contentWidth, totalContentHeight)
                 waitForDrawReady(composeView)
 
-                val pageCount = ceil(totalContentHeight / contentHeight.toFloat()).toInt()
+                val (pageStarts, pageHeights) = calculatePageStartsAndHeights(
+                    totalContentHeight = totalContentHeight,
+                    pageContentHeight = contentHeight,
+                    autoRebalanceBreaks = autoRebalanceBreaks,
+                    minLastPageRatio = minLastPageRatio
+                )
+                val pageCount = pageStarts.size
 
                 for (pageIndex in 0 until pageCount) {
                     val pageInfo = PdfDocument.PageInfo.Builder(
@@ -309,9 +322,9 @@ class PdfGenerator(private val context: Context) {
                             0f,
                             0f,
                             contentWidth.toFloat(),
-                            contentHeight.toFloat()
+                            pageHeights[pageIndex].toFloat()
                         )
-                        page.canvas.translate(0f, -(pageIndex * contentHeight).toFloat())
+                        page.canvas.translate(0f, -pageStarts[pageIndex].toFloat())
                         composeView.draw(page.canvas)
                         page.canvas.restore()
                     } finally {
@@ -335,6 +348,53 @@ class PdfGenerator(private val context: Context) {
                 pdfDocument.close()
             }
         }
+    }
+
+    // 페이지 분할 계산, 마지막 페이지 너무 작으면 앞 페이지 높이 조금씩 줄여 재분배
+    private fun calculatePageStartsAndHeights(
+        totalContentHeight: Int,
+        pageContentHeight: Int,
+        autoRebalanceBreaks: Boolean,
+        minLastPageRatio: Float
+    ): Pair<IntArray, IntArray> {
+        val pageCount = ceil(totalContentHeight / pageContentHeight.toFloat()).toInt().coerceAtLeast(1)
+        val pageHeights = IntArray(pageCount)
+
+        if (pageCount == 1) {
+            pageHeights[0] = totalContentHeight
+        } else {
+            val fullPages = pageCount - 1
+            val remainder = totalContentHeight - (fullPages * pageContentHeight)
+            val minLastPageHeight = ceil(pageContentHeight * minLastPageRatio).toInt().coerceAtLeast(1)
+            val shouldRebalance = autoRebalanceBreaks &&
+                remainder in 1 until minLastPageHeight &&
+                fullPages > 0
+
+            if (!shouldRebalance) {
+                for (index in 0 until fullPages) {
+                    pageHeights[index] = pageContentHeight
+                }
+                pageHeights[fullPages] = remainder
+            } else {
+                val deficit = minLastPageHeight - remainder
+                val baseReduction = deficit / fullPages
+                val extraReduction = deficit % fullPages
+
+                for (index in 0 until fullPages) {
+                    val reduction = baseReduction + if (index < extraReduction) 1 else 0
+                    pageHeights[index] = pageContentHeight - reduction
+                }
+                pageHeights[fullPages] = remainder + deficit
+            }
+        }
+
+        val pageStarts = IntArray(pageCount)
+        var runningOffset = 0
+        for (index in 0 until pageCount) {
+            pageStarts[index] = runningOffset
+            runningOffset += pageHeights[index]
+        }
+        return pageStarts to pageHeights
     }
 
     @Deprecated("Obsolete")
